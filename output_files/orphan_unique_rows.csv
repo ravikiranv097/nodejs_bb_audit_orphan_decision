@@ -1,0 +1,4 @@
+Seq Number,CI ID,Application Name,User SSO,User First Name,User Last Name,User Status,Account ID,Entitlement Desription,Business Role (SIAM Only),Quarter Review,Decision,Certificate Type1,Research Decision (Keep/Revoke),if Keep - Valid SSO,if Keep - Business Justification
+101,10000001,Bitbucket,user1,User1,User1,Orphan,user1,U : PA-Write,,Q32025,Pending,Identity Terminated,,,
+107,10000001,Bitbucket,user3,User3,User3,Orphan,user3,P : PB-Admin,,Q32025,Pending,Identity Terminated,,,
+110,10000001,Bitbucket,user2,User2,User2,Orphan,user2,P : PB-Write,,Q32025,Pending,Identity Terminated,,,
