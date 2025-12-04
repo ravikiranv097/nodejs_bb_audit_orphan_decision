@@ -213,7 +213,6 @@ async function accessCheck() {
 </head>
 <body>
 <div id="evidence">
-<h2>Bitbucket Access Check</h2>
 <b>User:</b> ${user}<br>
 <b>Account ID:</b> ${acc}<br>
 <b>Project Key:</b> ${project}<br>
