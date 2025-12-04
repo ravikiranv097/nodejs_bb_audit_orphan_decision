@@ -1,0 +1,30 @@
+
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: monospace; margin:8px; background: #fff; color:#000 }
+    #evidence { display:inline-block; background:#fff; color:#000; }
+    pre { display:inline-block; white-space:pre-wrap; word-break:break-word; max-width:1000px; }
+    h2,h3 { margin:6px 0 }
+  </style>
+</head>
+<body>
+<div id="evidence">
+<h2>Bitbucket Access Check</h2>
+<b>User:</b> user1<br>
+<b>Account ID:</b> user1<br>
+<b>Project Key:</b> PA<br>
+<b>Timestamp:</b> 2025-12-05 02:37:23<br>
+<h3>API URL</h3><pre>http://localhost:7990/rest/api/1.0/projects/PA/permissions/users?filter=user1</pre>
+<h3>API Response</h3>
+<pre>{
+  "size": 0,
+  "limit": 25,
+  "isLastPage": true,
+  "values": [],
+  "start": 0
+}</pre>
+</div>
+</body>
+</html>

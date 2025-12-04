@@ -45,6 +45,13 @@ const URL = process.env.BB_URL || "localhost:7990";
 const USERNAME = process.env.BB_USERNAME || "admin";
 const KEYNAME = process.env.BB_KEYNAME || "REPLACE_ME";
 
+// optional image processing for tight-crop
+let sharp;
+try { sharp = require('sharp'); } catch (e) { sharp = null; }
+
+const OUTER_PAD = 8;
+const CROP_COLOR_THRESHOLD = 200; // 0-255, lower => more pixels considered non-white
+
 // -------------------------------------------------------
 function ensureDir(d) { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); }
 
@@ -191,9 +198,21 @@ async function accessCheck() {
       ? path.join(PNG_HAS, `${user}_${project}_${sTs}.png`)
       : path.join(PNG_NO,  `${user}_${project}_${sTs}.png`);
 
-    // Generate HTML Evidence
+
+    // Generate HTML Evidence (wrap content in #evidence for tight clipping)
     const html = `
-<html><body style="font-family: monospace;">
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: monospace; margin:8px; background: #fff; color:#000 }
+    #evidence { display:inline-block; background:#fff; color:#000; }
+    pre { display:inline-block; white-space:pre-wrap; word-break:break-word; max-width:1000px; }
+    h2,h3 { margin:6px 0 }
+  </style>
+</head>
+<body>
+<div id="evidence">
 <h2>Bitbucket Access Check</h2>
 <b>User:</b> ${user}<br>
 <b>Account ID:</b> ${acc}<br>
@@ -202,15 +221,48 @@ async function accessCheck() {
 <h3>API URL</h3><pre>${apiUrl}</pre>
 <h3>API Response</h3>
 <pre>${JSON.stringify(apiData,null,2)}</pre>
-</body></html>`;
-
+</div>
+</body>
+</html>`;
     fs.writeFileSync(htmlFile, html);
 
-    // Screenshot
-    await page.goto("file://" + htmlFile, { waitUntil:"networkidle0" });
-    const height = await page.evaluate(() => document.body.scrollHeight);
-    await page.setViewport({ width:1280, height });
-    await page.screenshot({ path: pngFile });
+    // Screenshot: try to clip to the #evidence bounding box (preferred)
+    await page.goto("file://" + htmlFile, { waitUntil: "networkidle0" });
+    try { await page.waitForSelector('#evidence', { timeout: 2000 }); } catch (e) {}
+
+    try {
+      const box = await page.evaluate(() => {
+        const el = document.getElementById('evidence');
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, height: r.height, dpr: window.devicePixelRatio || 1 };
+      });
+
+      if (box && box.width > 0 && box.height > 0) {
+        const dpr = box.dpr || 1;
+        const clipX = Math.max(0, Math.floor(box.x * dpr) - OUTER_PAD);
+        const clipY = Math.max(0, Math.floor(box.y * dpr) - OUTER_PAD);
+        const clipW = Math.ceil(box.width * dpr) + OUTER_PAD * 2;
+        const clipH = Math.ceil(box.height * dpr) + OUTER_PAD * 2;
+
+        const pageSize = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
+        const maxW = Math.ceil(pageSize.w * (box.dpr || 1));
+        const maxH = Math.ceil(pageSize.h * (box.dpr || 1));
+        const finalW = Math.min(clipW, Math.max(1, maxW - clipX));
+        const finalH = Math.min(clipH, Math.max(1, maxH - clipY));
+
+        await page.screenshot({ path: pngFile, clip: { x: clipX, y: clipY, width: finalW, height: finalH } });
+      } else {
+        await page.screenshot({ path: pngFile, fullPage: true });
+        if (sharp) {
+          try { await sharp(pngFile).trim().toFile(pngFile + '.tmp'); fs.renameSync(pngFile + '.tmp', pngFile); }
+          catch (e) { /* ignore */ }
+        }
+      }
+    } catch (err) {
+      // fallback to full page screenshot
+      try { await page.screenshot({ path: pngFile, fullPage: true }); } catch (e) {}
+    }
 
     const logRow = csvRow([
       user, acc, project, perm,
